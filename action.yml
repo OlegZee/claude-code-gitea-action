@@ -112,7 +112,21 @@ runs:
       with:
         bun-version: 1.2.11
 
+    - name: Cache Bun and action deps
+      id: bun-cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.bun/install/cache
+          ~/.cache/bun
+          ~/Library/Caches/bun
+          ${{ github.action_path }}/node_modules
+        key: ${{ runner.os }}-bun-1.2.11-${{ github.action_ref || github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-bun-1.2.11-
+
     - name: Install Dependencies
+      if: steps.bun-cache.outputs.cache-hit != 'true'
       shell: bash
       run: |
         cd ${{ github.action_path }}
@@ -136,20 +150,31 @@ runs:
         GITEA_API_URL: ${{ env.GITHUB_SERVER_URL }}
         ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key }}
 
+    - name: Cache Claude CLI
+      id: claude-cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.local/bin/claude
+        key: ${{ runner.os }}-claude-1.0.117
+
     - name: Install Claude
       if: steps.prepare.outputs.contains_trigger == 'true'
       shell: bash
       run: |
-        # Install Claude Code if no custom executable is provided
-        if [ -z "${{ inputs.path_to_claude_code_executable }}" ]; then
-          echo "Installing Claude Code..."
-          curl -fsSL https://claude.ai/install.sh | bash -s 1.0.117
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-        else
+        # Use custom executable if provided; otherwise use cached or install
+        if [ -n "${{ inputs.path_to_claude_code_executable }}" ]; then
           echo "Using custom Claude Code executable: ${{ inputs.path_to_claude_code_executable }}"
-          # Add the directory containing the custom executable to PATH
           CLAUDE_DIR=$(dirname "${{ inputs.path_to_claude_code_executable }}")
           echo "$CLAUDE_DIR" >> "$GITHUB_PATH"
+        else
+          if command -v claude >/dev/null 2>&1 || [ -x "$HOME/.local/bin/claude" ]; then
+            echo "Claude Code found (cache or preinstalled)."
+            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          else
+            echo "Installing Claude Code..."
+            curl -fsSL https://claude.ai/install.sh | bash -s 1.0.117
+            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          fi
         fi
     # TODO pass claude_code_executable as input and use it here
 
@@ -241,6 +266,8 @@ runs:
         PREPARE_SUCCESS: ${{ steps.prepare.outcome == 'success' }}
         PREPARE_ERROR: ${{ steps.prepare.outputs.prepare_error || '' }}
         GITEA_API_URL: ${{ env.GITHUB_SERVER_URL }}
+
+        DEBUG: ${{ env.DEBUG }}
 
     - name: Display Claude Code Report
       if: steps.prepare.outputs.contains_trigger == 'true' && steps.claude-code.outputs.execution_file != ''
