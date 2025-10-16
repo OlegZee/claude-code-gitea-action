@@ -18,6 +18,7 @@ export async function prepareMcpConfig({
   owner,
   repo,
   branch,
+  context,
 }: PrepareMcpConfigOptions): Promise<string> {
   console.log("[MCP-INSTALL] Preparing MCP configuration...");
   console.log(`[MCP-INSTALL] Owner: ${owner}`);
@@ -34,6 +35,21 @@ export async function prepareMcpConfig({
   );
 
   try {
+    const baseEnv = {
+      GITHUB_TOKEN: githubToken,
+      REPO_OWNER: owner,
+      REPO_NAME: repo,
+      BRANCH_NAME: branch,
+      REPO_DIR: process.env.GITHUB_WORKSPACE || process.cwd(),
+      GITEA_API_URL:
+        process.env.GITEA_API_URL || "https://api.github.com",
+    };
+
+    // Add PR_NUMBER for PR contexts to enable inline comments
+    if (context?.isPR && context?.entityNumber) {
+      baseEnv.PR_NUMBER = context.entityNumber.toString();
+    }
+
     const mcpConfig = {
       mcpServers: {
         gitea: {
@@ -42,15 +58,7 @@ export async function prepareMcpConfig({
             "run",
             `${process.env.GITHUB_ACTION_PATH}/src/mcp/gitea-mcp-server.ts`,
           ],
-          env: {
-            GITHUB_TOKEN: githubToken,
-            REPO_OWNER: owner,
-            REPO_NAME: repo,
-            BRANCH_NAME: branch,
-            REPO_DIR: process.env.GITHUB_WORKSPACE || process.cwd(),
-            GITEA_API_URL:
-              process.env.GITEA_API_URL || "https://api.github.com",
-          },
+          env: baseEnv,
         },
         local_git_ops: {
           command: "bun",
@@ -58,15 +66,7 @@ export async function prepareMcpConfig({
             "run",
             `${process.env.GITHUB_ACTION_PATH}/src/mcp/local-git-ops-server.ts`,
           ],
-          env: {
-            GITHUB_TOKEN: githubToken,
-            REPO_OWNER: owner,
-            REPO_NAME: repo,
-            BRANCH_NAME: branch,
-            REPO_DIR: process.env.GITHUB_WORKSPACE || process.cwd(),
-            GITEA_API_URL:
-              process.env.GITEA_API_URL || "https://api.github.com",
-          },
+          env: baseEnv,
         },
       },
     };
