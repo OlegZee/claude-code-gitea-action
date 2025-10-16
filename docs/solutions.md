@@ -55,11 +55,11 @@ jobs:
             Note: The PR branch is already checked out in the current working directory.
 
             Use `gh pr comment` for top-level feedback.
-            Use `mcp__github_inline_comment__create_inline_comment` to highlight specific code issues.
-            Only post GitHub comments - don't submit review text as messages.
+            Use `mcp__gitea__create_inline_comment` to highlight specific code issues.
+            Only post Gitea comments - don't submit review text as messages.
 
           claude_args: |
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            --allowedTools "mcp__gitea__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
 ```
 
 **Key Configuration:**
@@ -110,7 +110,7 @@ jobs:
             Provide detailed feedback using inline comments for specific issues.
 
           claude_args: |
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            --allowedTools "mcp__gitea__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
 ```
 
 **Benefits of Progress Tracking:**
@@ -177,7 +177,7 @@ jobs:
             Post detailed security findings as PR comments.
 
           claude_args: |
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*)"
+            --allowedTools "mcp__gitea__create_inline_comment,Bash(gh pr comment:*)"
 ```
 
 **Key Configuration:**
@@ -235,7 +235,7 @@ jobs:
             Be welcoming but thorough in your review. Use inline comments for code-specific feedback.
 
           claude_args: |
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr view:*)"
+            --allowedTools "mcp__gitea__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr view:*)"
 ```
 
 **Key Configuration:**
@@ -309,7 +309,7 @@ jobs:
             Post a summary comment with checklist results.
 
           claude_args: |
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*)"
+            --allowedTools "mcp__gitea__create_inline_comment,Bash(gh pr comment:*)"
 ```
 
 **Key Configuration:**
@@ -551,7 +551,7 @@ jobs:
             Post detailed findings with recommendations.
 
           claude_args: |
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*)"
+            --allowedTools "mcp__gitea__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*)"
 ```
 
 **Key Configuration:**
@@ -578,7 +578,7 @@ prompt: |
 ### Common Tool Permissions
 
 - **PR Comments**: `Bash(gh pr comment:*)`
-- **Inline Comments**: `mcp__github_inline_comment__create_inline_comment`
+- **Inline Comments**: `mcp__gitea__create_inline_comment`
 - **File Operations**: `Read,Write,Edit`
 - **Git Operations**: `Bash(git:*)`
 
