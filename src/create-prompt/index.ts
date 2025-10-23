@@ -52,7 +52,7 @@ const BASE_ALLOWED_TOOLS = [
   "mcp__gitea__create_pull_request",
   "mcp__gitea__update_pull_request",
   "mcp__gitea__update_pull_request_comment",
-  "mcp__gitea__create_inline_comment",
+  "mcp__gitea__create_review_with_comments",
   "mcp__gitea__merge_pull_request",
   "mcp__gitea__update_pull_request_branch",
   "mcp__gitea__check_pull_request_merged",
@@ -677,7 +677,7 @@ ${
         - Look for bugs, security issues, performance problems, and other issues
         - Suggest improvements for readability and maintainability
         - Check for best practices and coding standards
-        - Reference specific code sections with file paths and line numbers${eventData.isPR ? "\n              - For inline feedback: Use mcp__gitea__create_inline_comment to comment on specific lines\n      - AFTER reading files and analyzing code, you MUST call mcp__gitea__update_issue_comment to post your review" : ""}
+        - Reference specific code sections with file paths and line numbers${eventData.isPR ? "\n              - For inline feedback: Use mcp__gitea__create_review_with_comments to create a review with inline comments on specific lines\n      - AFTER reading files and analyzing code, you MUST call mcp__gitea__update_issue_comment to post your review" : ""}
       - Formulate a concise, technical, and helpful response based on the context.
       - Reference specific code with inline formatting or code blocks.
       - Include relevant file paths and line numbers when applicable.
@@ -782,7 +782,7 @@ What You CAN Do:
 - Respond in a single comment (by updating your initial comment with progress and results)
 - Answer questions about code and provide explanations
 - Perform code reviews and provide detailed feedback (without implementing unless asked)
-- For PR reviews: Create inline comments on specific lines of code using mcp__gitea__create_inline_comment
+- For PR reviews: Create inline comments on specific lines of code using mcp__gitea__create_review_with_comments
 - Implement code changes (simple to moderate complexity) when explicitly requested
 - Create pull requests for changes to human-authored code
 - Smart branch handling:
