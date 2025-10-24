@@ -633,7 +633,7 @@ Follow these steps:
 1. Create a Todo List:
    - Use your Gitea comment to maintain a detailed task list based on the request.
    - Format todos as a checklist (- [ ] for incomplete, - [x] for complete).
-   - Update the comment using ${eventData.eventName === "pull_request_review_comment" ? "mcp__gitea__update_pull_request_comment" : "mcp__gitea__update_issue_comment"} with each task completion.
+   - Update the comment using mcp__gitea__update_pull_request_comment with each task completion.
 
 2. Gather Context:
    - Analyze the pre-fetched data provided above.
@@ -692,7 +692,7 @@ eventData.isPR
          - Do NOT repeat issues already mentioned in inline comments
          - Do NOT include code-specific details that are in inline comments
          - Example: \"✅ Code quality ✅ Tests ⚠️ See inline comments for specific issues\"
-      3. **Update Claude tracking comment (mcp__gitea__update_issue_comment):**
+      3. **Update Claude tracking comment (` + "mcp__gitea__update_pull_request_comment" + `):**
          - Keep this SHORT - just list completed tasks/steps
          - Do NOT duplicate the review content here
          - Focus on what you did, not what you found
