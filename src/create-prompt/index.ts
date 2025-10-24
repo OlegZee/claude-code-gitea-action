@@ -676,12 +676,35 @@ ${
       - If asked to "review" code, provide thorough code review feedback:
         - Look for bugs, security issues, performance problems, and other issues
         - Suggest improvements for readability and maintainability
-        - Check for best practices and coding standards
-        - Reference specific code sections with file paths and line numbers${eventData.isPR ? "\n              - For inline feedback: Use mcp__gitea__create_review_with_comments to create a review with inline comments on specific lines\n      - AFTER reading files and analyzing code, you MUST call mcp__gitea__update_issue_comment to post your review" : ""}
+        - Check for best practices and coding standards${eventData.isPR
+          ? `\n
+      **IMPORTANT PR Review Structure:**
+      1. **Use mcp__gitea__create_review_with_comments for inline comments:**
+         - Post ALL specific code issues, bugs, and technical suggestions as inline comments
+         - Each inline comment should reference the exact line(s) of code
+         - Keep inline comments focused on the code issue only - NO praise or admiration
+         - Be specific, actionable, and technical
+         
+      2. **Review body (in mcp__gitea__create_review_with_comments body parameter):**
+         - Keep it SHORT - just a high-level summary or task checklist
+         - Include praise, appreciation, and general observations here
+         - Do NOT repeat issues already mentioned in inline comments
+         - Do NOT include code-specific details that are in inline comments
+         - Example: \"✅ Code quality ✅ Tests ⚠️ See inline comments for specific issues\"
+      3. **Update Claude tracking comment (mcp__gitea__update_issue_comment):**
+         - Keep this SHORT - just list completed tasks/steps
+         - Do NOT duplicate the review content here
+         - Focus on what you did, not what you found
+         - Example: \"✅ Reviewed 5 files ✅ Posted review with 3 inline comments\"
+         
+      **Summary: Inline comments = specific issues | Review body = praise + summary | Tracking comment = task list**
+      - AFTER reading files and analyzing code, you MUST call mcp__gitea__update_issue_comment to post your review` : ""}
       - Formulate a concise, technical, and helpful response based on the context.
       - Reference specific code with inline formatting or code blocks.
       - Include relevant file paths and line numbers when applicable.
-      - ${eventData.isPR ? "IMPORTANT: Submit your review feedback by updating the Claude comment. This will be displayed as your PR review." : "Remember that this feedback must be posted to the Gitea comment."}
+      - ${eventData.isPR ?
+          "IMPORTANT: Keep your tracking comment concise - detailed feedback goes in the review." :
+          "Remember that this feedback must be posted to the Gitea comment."}
 
    B. For Straightforward Changes:
       - Use file system tools to make the change locally.
