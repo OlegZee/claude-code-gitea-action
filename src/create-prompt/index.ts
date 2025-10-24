@@ -676,7 +676,8 @@ ${
       - If asked to "review" code, provide thorough code review feedback:
         - Look for bugs, security issues, performance problems, and other issues
         - Suggest improvements for readability and maintainability
-        - Check for best practices and coding standards${eventData.isPR
+        - Check for best practices and coding standards${
+eventData.isPR
           ? `\n
       **IMPORTANT PR Review Structure:**
       1. **Use mcp__gitea__create_review_with_comments for inline comments:**
@@ -698,7 +699,7 @@ ${
          - Example: \"✅ Reviewed 5 files ✅ Posted review with 3 inline comments\"
          
       **Summary: Inline comments = specific issues | Review body = praise + summary | Tracking comment = task list**
-      - AFTER reading files and analyzing code, you MUST call mcp__gitea__update_issue_comment to post your review` : ""}
+      - AFTER reading files and analyzing code, you MUST call mcp__gitea__create_review_with_comments to post your review` : ""}
       - Formulate a concise, technical, and helpful response based on the context.
       - Reference specific code with inline formatting or code blocks.
       - Include relevant file paths and line numbers when applicable.
