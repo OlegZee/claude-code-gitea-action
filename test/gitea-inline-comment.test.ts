@@ -18,7 +18,9 @@ describe("Gitea Review with Comments MCP Tool", () => {
 
   describe("create_review_with_comments tool", () => {
     it("should be included in allowed tools", async () => {
-      const { buildAllowedToolsString } = await import("../src/create-prompt/index");
+      const { buildAllowedToolsString } = await import(
+        "../src/create-prompt/index"
+      );
 
       const allowedTools = buildAllowedToolsString();
       expect(allowedTools).toContain("mcp__gitea__create_review_with_comments");
@@ -30,7 +32,7 @@ describe("Gitea Review with Comments MCP Tool", () => {
         body: "string (optional)",
         event: "COMMENT | APPROVE | REQUEST_CHANGES (optional)",
         commit_id: "string (optional)",
-        comments: "array of {path, body, line, side}"
+        comments: "array of {path, body, line, side}",
       };
 
       // This is a structural test to ensure the tool interface is correct
@@ -44,7 +46,9 @@ describe("Gitea Review with Comments MCP Tool", () => {
 
       const expectedEndpoint = `/api/v1/repos/${owner}/${repo}/pulls/${pullNumber}/reviews`;
 
-      expect(expectedEndpoint).toBe("/api/v1/repos/testowner/testrepo/pulls/123/reviews");
+      expect(expectedEndpoint).toBe(
+        "/api/v1/repos/testowner/testrepo/pulls/123/reviews",
+      );
     });
 
     it("should format review data correctly for single comment", () => {
@@ -57,9 +61,9 @@ describe("Gitea Review with Comments MCP Tool", () => {
             path: "src/test.ts",
             body: "This is a test comment",
             line: 42,
-            side: "RIGHT"
-          }
-        ]
+            side: "RIGHT",
+          },
+        ],
       };
 
       expect(reviewData.event).toBe("COMMENT");
@@ -78,15 +82,15 @@ describe("Gitea Review with Comments MCP Tool", () => {
             path: "src/test.ts",
             body: "First comment",
             line: 10,
-            side: "RIGHT"
+            side: "RIGHT",
           },
           {
             path: "src/another.ts",
             body: "Second comment",
             line: 20,
-            side: "LEFT"
-          }
-        ]
+            side: "LEFT",
+          },
+        ],
       };
 
       expect(reviewData.comments).toHaveLength(2);
@@ -99,7 +103,7 @@ describe("Gitea Review with Comments MCP Tool", () => {
         path: "src/test.ts",
         body: "Test comment",
         line: 10,
-        side: undefined
+        side: undefined,
       };
 
       const side = comment.side || "RIGHT";
@@ -111,12 +115,12 @@ describe("Gitea Review with Comments MCP Tool", () => {
         path: "src/test.ts",
         body: "Test",
         line: 42,
-        side: "RIGHT"
+        side: "RIGHT",
       };
 
       const giteaComment: any = {
         path: comment.path,
-        body: comment.body
+        body: comment.body,
       };
 
       if (comment.side === "LEFT") {
@@ -134,12 +138,12 @@ describe("Gitea Review with Comments MCP Tool", () => {
         path: "src/test.ts",
         body: "Test",
         line: 42,
-        side: "LEFT"
+        side: "LEFT",
       };
 
       const giteaComment: any = {
         path: comment.path,
-        body: comment.body
+        body: comment.body,
       };
 
       if (comment.side === "LEFT") {
@@ -156,7 +160,9 @@ describe("Gitea Review with Comments MCP Tool", () => {
   describe("prompt template updates", () => {
     it("should mention review with comments in capabilities", async () => {
       // Test that the buildAllowedToolsString includes our new tool
-      const { buildAllowedToolsString } = await import("../src/create-prompt/index");
+      const { buildAllowedToolsString } = await import(
+        "../src/create-prompt/index"
+      );
 
       const allowedTools = buildAllowedToolsString();
 
@@ -169,18 +175,25 @@ describe("Gitea Review with Comments MCP Tool", () => {
       const fs = await import("fs");
       const path = await import("path");
 
-      const promptFilePath = path.join(process.cwd(), "src/create-prompt/index.ts");
+      const promptFilePath = path.join(
+        process.cwd(),
+        "src/create-prompt/index.ts",
+      );
       const promptContent = fs.readFileSync(promptFilePath, "utf-8");
 
       // Check that PR-specific review comment instructions are present in the source
-      expect(promptContent).toContain("For inline feedback");
-      expect(promptContent).toContain("mcp__gitea__create_review_with_comments");
+      expect(promptContent).toContain("For code reviews and feedback");
+      expect(promptContent).toContain(
+        "mcp__gitea__create_review_with_comments",
+      );
     });
   });
 
   describe("tool availability", () => {
     it("should include review with comments tool in allowed tools for PRs", async () => {
-      const { buildAllowedToolsString } = await import("../src/create-prompt/index");
+      const { buildAllowedToolsString } = await import(
+        "../src/create-prompt/index"
+      );
 
       const allowedTools = buildAllowedToolsString();
 
@@ -188,7 +201,9 @@ describe("Gitea Review with Comments MCP Tool", () => {
     });
 
     it("should maintain existing Gitea tools alongside new review with comments tool", async () => {
-      const { buildAllowedToolsString } = await import("../src/create-prompt/index");
+      const { buildAllowedToolsString } = await import(
+        "../src/create-prompt/index"
+      );
 
       const allowedTools = buildAllowedToolsString();
 
