@@ -52,7 +52,7 @@ const BASE_ALLOWED_TOOLS = [
   "mcp__gitea__create_pull_request",
   "mcp__gitea__update_pull_request",
   "mcp__gitea__update_pull_request_comment",
-  "mcp__gitea__create_inline_comment",
+  "mcp__gitea__create_review_with_comments",
   "mcp__gitea__merge_pull_request",
   "mcp__gitea__update_pull_request_branch",
   "mcp__gitea__check_pull_request_merged",
@@ -121,7 +121,9 @@ export function buildDisallowedToolsString(
   // If user has explicitly allowed some hardcoded disallowed tools, remove them from disallowed list
   const allowedList = normalizeToolList(allowedTools);
   if (allowedList.length > 0) {
-    disallowedTools = disallowedTools.filter((tool) => !allowedList.includes(tool));
+    disallowedTools = disallowedTools.filter(
+      (tool) => !allowedList.includes(tool),
+    );
   }
 
   let allDisallowedTools = disallowedTools.join(",");
@@ -607,8 +609,26 @@ Tool usage example for mcp__gitea__update_pull_request_comment:
 }
 All four parameters (owner, repo, commentId, body) are required.
 </comment_tool_info>`
-    : `<comment_tool_info>
-IMPORTANT: For this event type, you have been provided with ONLY the mcp__gitea__update_issue_comment tool to update comments.
+    : eventData.isPR
+      ? `<comment_tool_info>
+IMPORTANT: For PR events, you have TWO separate communication channels:
+
+1. **For code reviews and feedback**: Use mcp__gitea__create_review_with_comments
+   - Post ALL specific code issues, bugs, and technical suggestions as inline comments
+   - Include a review body with high-level summary and praise
+   - This is how you provide CODE REVIEW feedback to the user
+
+2. **For status/progress tracking ONLY**: Use mcp__gitea__update_issue_comment
+   - Update your tracking comment (ID: ${context.claudeCommentId}) with task progress
+   - Keep this SHORT - just checklist items and completion status
+   - Do NOT duplicate review content here
+
+Tool usage examples:
+- mcp__gitea__create_review_with_comments: Use for posting code reviews
+- mcp__gitea__update_issue_comment: {"owner": "${context.repository.split("/")[0]}", "repo": "${context.repository.split("/")[1]}", "commentId": ${context.claudeCommentId}, "body": "✅ Task completed"}
+</comment_tool_info>`
+      : `<comment_tool_info>
+IMPORTANT: For this event type, you communicate through mcp__gitea__update_issue_comment to update your tracking comment.
 
 Tool usage example for mcp__gitea__update_issue_comment:
 {
@@ -624,7 +644,7 @@ All four parameters (owner, repo, commentId, body) are required.
 Your task is to analyze the context, understand the request, and provide helpful responses and/or implement code changes as needed.
 
 IMPORTANT CLARIFICATIONS:
-- When asked to "review" code, read the code and provide review feedback (do not implement changes unless explicitly asked)${eventData.isPR ? "\n- For PR reviews: Your review will be posted when you update the comment. Focus on providing comprehensive review feedback." : ""}
+- When asked to "review" code, read the code and provide review feedback (do not implement changes unless explicitly asked)${eventData.isPR ? "\n- For PR reviews: Your review will be posted using mcp__gitea__create_review_with_comments. Focus on providing comprehensive review feedback with inline comments." : ""}
 - Your console outputs and tool results are NOT visible to the user
 - ALL communication happens through your Gitea comment - that's how users see your feedback, answers, and progress. your normal responses are not seen.
 
@@ -633,7 +653,7 @@ Follow these steps:
 1. Create a Todo List:
    - Use your Gitea comment to maintain a detailed task list based on the request.
    - Format todos as a checklist (- [ ] for incomplete, - [x] for complete).
-   - Update the comment using ${eventData.eventName === "pull_request_review_comment" ? "mcp__gitea__update_pull_request_comment" : "mcp__gitea__update_issue_comment"} with each task completion.
+   - Update the comment using mcp__gitea__update_pull_request_comment with each task completion.
 
 2. Gather Context:
    - Analyze the pre-fetched data provided above.
@@ -676,12 +696,42 @@ ${
       - If asked to "review" code, provide thorough code review feedback:
         - Look for bugs, security issues, performance problems, and other issues
         - Suggest improvements for readability and maintainability
-        - Check for best practices and coding standards
-        - Reference specific code sections with file paths and line numbers${eventData.isPR ? "\n              - For inline feedback: Use mcp__gitea__create_inline_comment to comment on specific lines\n      - AFTER reading files and analyzing code, you MUST call mcp__gitea__update_issue_comment to post your review" : ""}
+        - Check for best practices and coding standards${
+          eventData.isPR
+            ? `\n
+      **IMPORTANT PR Review Structure:**
+      1. **Use mcp__gitea__create_review_with_comments for inline comments:**
+         - Post ALL specific code issues, bugs, and technical suggestions as inline comments
+         - Each inline comment should reference the exact line(s) of code
+         - Keep inline comments focused on the code issue only - NO praise or admiration
+         - Be specific, actionable, and technical
+         
+      2. **Review body (in mcp__gitea__create_review_with_comments body parameter):**
+         - Keep it SHORT - just a high-level summary or task checklist
+         - Include praise, appreciation, and general observations here
+         - Do NOT repeat issues already mentioned in inline comments
+         - Do NOT include code-specific details that are in inline comments
+         - Example: \"✅ Code quality ✅ Tests ⚠️ See inline comments for specific issues\"
+      3. **Update Claude tracking comment (` +
+              "mcp__gitea__update_pull_request_comment" +
+              `):**
+         - Keep this SHORT - just list completed tasks/steps
+         - Do NOT duplicate the review content here
+         - Focus on what you did, not what you found
+         - Example: \"✅ Reviewed 5 files ✅ Posted review with 3 inline comments\"
+         
+      **Summary: Inline comments = specific issues | Review body = praise + summary | Tracking comment = task list**
+      - AFTER reading files and analyzing code, you MUST call mcp__gitea__create_review_with_comments to post your review`
+            : ""
+        }
       - Formulate a concise, technical, and helpful response based on the context.
       - Reference specific code with inline formatting or code blocks.
       - Include relevant file paths and line numbers when applicable.
-      - ${eventData.isPR ? "IMPORTANT: Submit your review feedback by updating the Claude comment. This will be displayed as your PR review." : "Remember that this feedback must be posted to the Gitea comment."}
+      - ${
+        eventData.isPR
+          ? "IMPORTANT: Keep your tracking comment concise - detailed feedback goes in the review."
+          : "Remember that this feedback must be posted to the Gitea comment."
+      }
 
    B. For Straightforward Changes:
       - Use file system tools to make the change locally.
@@ -738,9 +788,8 @@ ${!eventData.isPR || !eventData.claudeBranch ? `6. Final Update:` : `5. Final Up
    ${!eventData.isPR || !eventData.claudeBranch ? `- If you created a branch and made changes, you must create a PR using mcp__local_git_ops__create_pull_request.` : ""}
 
 Important Notes:
-- All communication must happen through Gitea PR comments.
-- Never create new comments. Only update the existing comment using ${eventData.eventName === "pull_request_review_comment" ? "mcp__gitea__update_pull_request_comment" : "mcp__gitea__update_issue_comment"} with comment_id: ${context.claudeCommentId}.
-- This includes ALL responses: code reviews, answers to questions, progress updates, and final results.${eventData.isPR ? "\n- PR CRITICAL: After reading files and forming your response, you MUST post it by calling mcp__gitea__update_issue_comment. Do NOT just respond with a normal response, the user will not see it." : ""}
+- All communication must happen through Gitea comments.
+- Never create new comments. Only update the existing comment using ${eventData.eventName === "pull_request_review_comment" ? "mcp__gitea__update_pull_request_comment" : "mcp__gitea__update_issue_comment"} with comment_id: ${context.claudeCommentId}.${eventData.isPR ? "\n- For PRs: Use mcp__gitea__update_issue_comment for progress/status tracking ONLY. Use mcp__gitea__create_review_with_comments for posting code reviews with inline comments." : "\n- This includes ALL responses: code reviews, answers to questions, progress updates, and final results."}
 - You communicate exclusively by editing your single comment - not through any other means.
 - Use this spinner HTML when work is in progress: <img src="https://raw.githubusercontent.com/markwylde/claude-code-gitea-action/refs/heads/gitea/assets/spinner.gif" width="14px" height="14px" style="vertical-align: middle; margin-left: 4px;" />
 ${eventData.isPR && !eventData.claudeBranch ? `- Always push to the existing branch when triggered on a PR.` : eventData.claudeBranch ? `- IMPORTANT: You are already on the correct branch (${eventData.claudeBranch}). Do not create additional branches.` : `- IMPORTANT: You are currently on the base branch (${eventData.baseBranch}). First check for existing claude branches for this ${eventData.isPR ? "PR" : "issue"} and use them if found, otherwise create a new branch using mcp__local_git_ops__create_branch.`}
@@ -750,11 +799,6 @@ ${eventData.isPR && !eventData.claudeBranch ? `- Always push to the existing bra
   - mcp__local_git_ops__push_branch: {"branch": "branch-name"} (REQUIRED after committing to push changes to remote)
   - mcp__local_git_ops__delete_files: {"files": ["path/to/old.js"], "message": "chore: remove deprecated file"}
 - Display the todo list as a checklist in the Gitea comment and mark things off as you go.
-- All communication must happen through Gitea PR comments.
-- Never create new comments. Only update the existing comment using ${eventData.eventName === "pull_request_review_comment" ? "mcp__gitea__update_pull_request_comment" : "mcp__gitea__update_issue_comment"}.
-- This includes ALL responses: code reviews, answers to questions, progress updates, and final results.${eventData.isPR ? "\n- PR CRITICAL: After reading files and forming your response, you MUST post it by calling mcp__gitea__update_issue_comment. Do NOT just respond with a normal response, the user will not see it." : ""}
-- You communicate exclusively by editing your single comment - not through any other means.
-- Use this spinner HTML when work is in progress: <img src="https://github.com/user-attachments/assets/5ac382c7-e004-429b-8e35-7feb3e8f9c6f" width="14px" height="14px" style="vertical-align: middle; margin-left: 4px;" />
 ${eventData.isPR && !eventData.claudeBranch ? `- Always push to the existing branch when triggered on a PR.` : `- IMPORTANT: You are already on the correct branch (${eventData.claudeBranch || "the created branch"}). Never create new branches when triggered on issues or closed/merged PRs.`}
 ${
   useCommitSigning
@@ -782,7 +826,7 @@ What You CAN Do:
 - Respond in a single comment (by updating your initial comment with progress and results)
 - Answer questions about code and provide explanations
 - Perform code reviews and provide detailed feedback (without implementing unless asked)
-- For PR reviews: Create inline comments on specific lines of code using mcp__gitea__create_inline_comment
+- For PR reviews: Create inline comments on specific lines of code using mcp__gitea__create_review_with_comments
 - Implement code changes (simple to moderate complexity) when explicitly requested
 - Create pull requests for changes to human-authored code
 - Smart branch handling:

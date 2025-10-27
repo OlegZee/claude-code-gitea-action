@@ -65,7 +65,7 @@ jobs:
 
           # Tools for comprehensive PR review
           claude_args: |
-            --allowedTools "mcp__gitea__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            --allowedTools "mcp__gitea__create_review_with_comments,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
 
 # When track_progress is enabled:
 # - Creates a tracking comment with progress checkboxes

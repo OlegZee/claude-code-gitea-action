@@ -1261,109 +1261,108 @@ server.tool(
   },
 );
 
-// Create inline comment on pull request
+// Create a pull request review with inline comments
 server.tool(
-  "create_inline_comment",
-  "Create an inline comment on a specific line or lines in a PR file",
+  "create_review_with_comments",
+  "Create a pull request review with multiple inline comments on specific lines in PR files. This creates ONE review (one PR comment) that can contain multiple inline file comments underneath it.",
   {
-    path: z
-      .string()
-      .describe("The file path to comment on (e.g., 'src/index.js')"),
     body: z
       .string()
-      .describe(
-        "The comment text (supports markdown and GitHub code suggestion blocks). " +
-          "For code suggestions, use: ```suggestion\\nreplacement code\\n```. " +
-          "IMPORTANT: The suggestion block will REPLACE the ENTIRE line range (single line or startLine to line). " +
-          "Ensure the replacement is syntactically complete and valid - it must work as a drop-in replacement for the selected lines.",
-      ),
-    line: z
-      .number()
-      .nonnegative()
       .optional()
       .describe(
-        "Line number for single-line comments (required if startLine is not provided)",
+        "Overall review comment text (optional, can be empty if only posting inline comments)",
       ),
-    startLine: z
-      .number()
-      .nonnegative()
+    event: z
+      .enum(["COMMENT", "APPROVE", "REQUEST_CHANGES"])
       .optional()
+      .default("COMMENT")
       .describe(
-        "Start line for multi-line comments (use with line parameter for the end line)",
-      ),
-    side: z
-      .enum(["LEFT", "RIGHT"])
-      .optional()
-      .default("RIGHT")
-      .describe(
-        "Side of the diff to comment on: LEFT (old code) or RIGHT (new code)",
+        "Review event type: COMMENT (general feedback), APPROVE (approve PR), or REQUEST_CHANGES (request changes)",
       ),
     commit_id: z
       .string()
       .optional()
       .describe(
-        "Specific commit SHA to comment on (defaults to latest commit)",
+        "Specific commit SHA to review (defaults to latest commit in PR)",
+      ),
+    comments: z
+      .array(
+        z.object({
+          path: z
+            .string()
+            .describe("The file path to comment on (e.g., 'src/index.js')"),
+          body: z
+            .string()
+            .describe(
+              "The comment text (supports markdown). For code suggestions, you can reference specific code sections.",
+            ),
+          line: z
+            .number()
+            .positive()
+            .describe(
+              "The line number to comment on (1-based line number in the file)",
+            ),
+          side: z
+            .enum(["LEFT", "RIGHT"])
+            .optional()
+            .default("RIGHT")
+            .describe(
+              "Side of the diff: LEFT (old code, before changes) or RIGHT (new code, after changes)",
+            ),
+        }),
+      )
+      .min(1)
+      .describe(
+        "Array of inline comments to include in this review. Each comment references a specific line in a file.",
       ),
   },
-  async ({ path, body, line, startLine, side, commit_id }) => {
+  async ({ body, event = "COMMENT", commit_id, comments }) => {
     try {
-      // Validate that either line or both startLine and line are provided
-      if (!line && !startLine) {
+      // Get PR number from environment
+      const prNumber = process.env.PR_NUMBER;
+      if (!prNumber) {
         throw new Error(
-          "Either 'line' for single-line comments or both 'startLine' and 'line' for multi-line comments must be provided",
+          "PR_NUMBER environment variable is required for creating reviews",
         );
       }
 
-      // If only line is provided, it's a single-line comment
-      // If both startLine and line are provided, it's a multi-line comment
-      const isSingleLine = !startLine;
-
-      // First get the PR to find the latest commit if commit_id is not provided
+      // Get commit SHA if not provided
       let commitSha = commit_id;
       if (!commitSha) {
-        // We need a way to get the PR number from context - this will need to be provided via environment
-        const prNumberFromEnv = process.env.PR_NUMBER;
-        if (!prNumberFromEnv) {
-          throw new Error("PR_NUMBER environment variable is required when commit_id is not provided");
-        }
-        
         const pr = await giteaRequest(
-          `/api/v1/repos/${REPO_OWNER}/${REPO_NAME}/pulls/${prNumberFromEnv}`,
+          `/api/v1/repos/${REPO_OWNER}/${REPO_NAME}/pulls/${prNumber}`,
         );
         commitSha = pr.head.sha;
       }
 
-      const commentData: any = {
-        body,
-        path,
-        commit_id: commitSha,
-        side: side?.toLowerCase() || "right", // Gitea expects lowercase
-      };
+      // Transform comments to Gitea API format
+      // Gitea uses old_position for LEFT side and new_position for RIGHT side
+      const giteaComments = comments.map((comment) => {
+        const giteaComment: any = {
+          path: comment.path,
+          body: comment.body,
+        };
 
-      // Handle single-line vs multi-line comments
-      if (isSingleLine) {
-        // Single-line comment
-        commentData.position = line;
-      } else {
-        // Multi-line comment
-        commentData.start_line = startLine;
-        commentData.start_side = side?.toLowerCase() || "right";
-        commentData.position = line;
-      }
+        // Map side to old_position or new_position
+        if (comment.side === "LEFT") {
+          giteaComment.old_position = comment.line;
+        } else {
+          // RIGHT is default
+          giteaComment.new_position = comment.line;
+        }
 
-      // Get PR number from environment or try to extract from context
-      const prNumber = process.env.PR_NUMBER;
-      if (!prNumber) {
-        throw new Error("PR_NUMBER environment variable is required for inline comments");
-      }
+        return giteaComment;
+      });
 
-      const comment = await giteaRequest(
+      // Create the review with inline comments
+      const review = await giteaRequest(
         `/api/v1/repos/${REPO_OWNER}/${REPO_NAME}/pulls/${prNumber}/reviews`,
         "POST",
         {
-          body: "", // Empty review body since we're adding inline comments
-          event: "COMMENT",
-          comments: [commentData],
+          body: body || "", // Empty body is allowed
+          event: event,
+          commit_id: commitSha,
+          comments: giteaComments,
         },
       );
 
@@ -1374,10 +1373,11 @@ server.tool(
             text: JSON.stringify(
               {
                 success: true,
-                comment_id: comment.id,
-                path: path,
-                line: line,
-                message: `Inline comment created successfully on ${path}${isSingleLine ? ` at line ${line}` : ` from line ${startLine} to ${line}`}`,
+                review_id: review.id,
+                comments_count: comments.length,
+                event: event,
+                message: `Review created successfully with ${comments.length} inline comment${comments.length > 1 ? "s" : ""} on PR #${prNumber}`,
+                files_commented: [...new Set(comments.map((c) => c.path))],
               },
               null,
               2,
@@ -1393,20 +1393,24 @@ server.tool(
       let helpMessage = "";
       if (errorMessage.includes("Validation Failed")) {
         helpMessage =
-          "\n\nThis usually means the line number doesn't exist in the diff or the file path is incorrect. Make sure you're commenting on lines that are part of the PR's changes.";
-      } else if (errorMessage.includes("Not Found")) {
+          "\n\nThis usually means:\n" +
+          "- A line number doesn't exist in the diff or is out of range\n" +
+          "- A file path is incorrect or not part of the PR changes\n" +
+          "- You're trying to comment on lines that aren't modified in the PR\n" +
+          "Make sure all line numbers reference lines that are part of the PR's changes.";
+      } else if (errorMessage.includes("Not Found") || errorMessage.includes("404")) {
         helpMessage =
-          "\n\nThis usually means the PR number, repository, or file path is incorrect.";
+          "\n\nThis usually means the PR number, repository, or commit SHA is incorrect.";
       }
 
       console.error(
-        `[GITEA-MCP] Error creating inline comment: ${errorMessage}`,
+        `[GITEA-MCP] Error creating review with comments: ${errorMessage}`,
       );
       return {
         content: [
           {
             type: "text",
-            text: `Error creating inline comment: ${errorMessage}${helpMessage}`,
+            text: `Error creating review with comments: ${errorMessage}${helpMessage}`,
           },
         ],
         error: errorMessage,
