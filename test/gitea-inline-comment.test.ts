@@ -17,13 +17,29 @@ describe("Gitea Review with Comments MCP Tool", () => {
   });
 
   describe("create_review_with_comments tool", () => {
-    it("should be included in allowed tools", async () => {
+    it("should be included in allowed tools when inline comments are enabled", async () => {
       const { buildAllowedToolsString } = await import(
         "../src/create-prompt/index"
       );
 
-      const allowedTools = buildAllowedToolsString();
+      const allowedTools = buildAllowedToolsString(undefined, false, false, true);
       expect(allowedTools).toContain("mcp__gitea__create_review_with_comments");
+    });
+
+    it("should NOT be included in allowed tools when inline comments are disabled", async () => {
+      const { buildAllowedToolsString } = await import(
+        "../src/create-prompt/index"
+      );
+
+      const allowedTools = buildAllowedToolsString(
+        undefined,
+        false,
+        false,
+        false,
+      );
+      expect(allowedTools).not.toContain(
+        "mcp__gitea__create_review_with_comments",
+      );
     });
 
     it("should have correct tool parameters", () => {
@@ -158,16 +174,34 @@ describe("Gitea Review with Comments MCP Tool", () => {
   });
 
   describe("prompt template updates", () => {
-    it("should mention review with comments in capabilities", async () => {
+    it("should mention review with comments in capabilities when enabled", async () => {
       // Test that the buildAllowedToolsString includes our new tool
       const { buildAllowedToolsString } = await import(
         "../src/create-prompt/index"
       );
 
-      const allowedTools = buildAllowedToolsString();
+      const allowedTools = buildAllowedToolsString(undefined, false, false, true);
 
       // Check that the tool is included in the allowed tools string
       expect(allowedTools).toContain("mcp__gitea__create_review_with_comments");
+    });
+
+    it("should NOT mention review with comments in capabilities when disabled", async () => {
+      const { buildAllowedToolsString } = await import(
+        "../src/create-prompt/index"
+      );
+
+      const allowedTools = buildAllowedToolsString(
+        undefined,
+        false,
+        false,
+        false,
+      );
+
+      // Check that the tool is NOT included when disabled
+      expect(allowedTools).not.toContain(
+        "mcp__gitea__create_review_with_comments",
+      );
     });
 
     it("should include review with comments instructions in static prompt content", async () => {
@@ -190,30 +224,70 @@ describe("Gitea Review with Comments MCP Tool", () => {
   });
 
   describe("tool availability", () => {
-    it("should include review with comments tool in allowed tools for PRs", async () => {
+    it("should include review with comments tool in allowed tools for PRs when enabled", async () => {
       const { buildAllowedToolsString } = await import(
         "../src/create-prompt/index"
       );
 
-      const allowedTools = buildAllowedToolsString();
+      const allowedTools = buildAllowedToolsString(undefined, false, false, true);
 
       expect(allowedTools).toContain("mcp__gitea__create_review_with_comments");
     });
 
-    it("should maintain existing Gitea tools alongside new review with comments tool", async () => {
+    it("should NOT include review with comments tool when disabled", async () => {
       const { buildAllowedToolsString } = await import(
         "../src/create-prompt/index"
       );
 
-      const allowedTools = buildAllowedToolsString();
+      const allowedTools = buildAllowedToolsString(
+        undefined,
+        false,
+        false,
+        false,
+      );
+
+      expect(allowedTools).not.toContain(
+        "mcp__gitea__create_review_with_comments",
+      );
+    });
+
+    it("should maintain existing Gitea tools alongside new review with comments tool when enabled", async () => {
+      const { buildAllowedToolsString } = await import(
+        "../src/create-prompt/index"
+      );
+
+      const allowedTools = buildAllowedToolsString(undefined, false, false, true);
 
       // Ensure existing tools are still present
       expect(allowedTools).toContain("mcp__gitea__update_pull_request_comment");
       expect(allowedTools).toContain("mcp__gitea__create_pull_request");
       expect(allowedTools).toContain("mcp__gitea__update_issue_comment");
 
-      // And new tool is added
+      // And new tool is added when enabled
       expect(allowedTools).toContain("mcp__gitea__create_review_with_comments");
+    });
+
+    it("should maintain existing Gitea tools when inline comments are disabled", async () => {
+      const { buildAllowedToolsString } = await import(
+        "../src/create-prompt/index"
+      );
+
+      const allowedTools = buildAllowedToolsString(
+        undefined,
+        false,
+        false,
+        false,
+      );
+
+      // Ensure existing tools are still present
+      expect(allowedTools).toContain("mcp__gitea__update_pull_request_comment");
+      expect(allowedTools).toContain("mcp__gitea__create_pull_request");
+      expect(allowedTools).toContain("mcp__gitea__update_issue_comment");
+
+      // But review tool should not be added when disabled
+      expect(allowedTools).not.toContain(
+        "mcp__gitea__create_review_with_comments",
+      );
     });
   });
 });

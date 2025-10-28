@@ -43,6 +43,7 @@ export type ParsedGitHubContext = {
     useStickyComment: boolean;
     additionalPermissions: Map<string, string>;
     useCommitSigning: boolean;
+    enableInlineComments: boolean;
   };
 };
 
@@ -81,6 +82,9 @@ export function parseGitHubContext(): ParsedGitHubContext {
         process.env.ADDITIONAL_PERMISSIONS ?? "",
       ),
       useCommitSigning: process.env.USE_COMMIT_SIGNING === "true",
+      enableInlineComments:
+        process.env.ENABLE_INLINE_COMMENTS !== "false" &&
+        process.env.ENABLE_INLINE_COMMENTS !== "0",
     },
   };
 

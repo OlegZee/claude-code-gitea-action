@@ -81,6 +81,10 @@ inputs:
     description: "Enable automatic fallback to specified model when default model is overloaded"
     required: false
     default: ""
+  enable_inline_comments:
+    description: "Enable inline PR review comments using mcp__gitea__create_review_with_comments tool"
+    required: false
+    default: "true"
 
   # Auth configuration
   anthropic_api_key:
@@ -167,6 +171,7 @@ runs:
         DIRECT_PROMPT: ${{ inputs.direct_prompt }}
         OVERRIDE_PROMPT: ${{ inputs.override_prompt }}
         ADDITIONAL_PERMISSIONS: ${{ inputs.additional_permissions }}
+        ENABLE_INLINE_COMMENTS: ${{ inputs.enable_inline_comments }}
         OVERRIDE_GITHUB_TOKEN: ${{ inputs.gitea_token }}
         GITHUB_TOKEN: ${{ github.token }}
         GITHUB_RUN_ID: ${{ github.run_id }}

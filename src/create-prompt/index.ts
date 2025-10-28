@@ -52,7 +52,6 @@ const BASE_ALLOWED_TOOLS = [
   "mcp__gitea__create_pull_request",
   "mcp__gitea__update_pull_request",
   "mcp__gitea__update_pull_request_comment",
-  "mcp__gitea__create_review_with_comments",
   "mcp__gitea__merge_pull_request",
   "mcp__gitea__update_pull_request_branch",
   "mcp__gitea__check_pull_request_merged",
@@ -61,6 +60,7 @@ const BASE_ALLOWED_TOOLS = [
   "mcp__gitea__get_branch",
   "mcp__gitea__delete_file",
 ];
+const INLINE_COMMENT_TOOLS = ["mcp__gitea__create_review_with_comments"];
 const DISALLOWED_TOOLS = ["WebSearch", "WebFetch"];
 
 const ACTIONS_ALLOWED_TOOLS = [
@@ -90,6 +90,7 @@ export function buildAllowedToolsString(
   customAllowedTools?: string | string[],
   includeActionsReadTools = false,
   useCommitSigning = false,
+  enableInlineComments = true,
 ): string {
   const allowedTools = new Set<string>(BASE_ALLOWED_TOOLS);
 
@@ -101,6 +102,12 @@ export function buildAllowedToolsString(
 
   if (useCommitSigning) {
     for (const tool of COMMIT_SIGNING_TOOLS) {
+      allowedTools.add(tool);
+    }
+  }
+
+  if (enableInlineComments) {
+    for (const tool of INLINE_COMMENT_TOOLS) {
       allowedTools.add(tool);
     }
   }
@@ -499,6 +506,7 @@ export function generatePrompt(
   context: PreparedContext,
   githubData: FetchDataResult,
   useCommitSigning = false,
+  enableInlineComments = true,
 ): string {
   if (context.overridePrompt) {
     return substitutePromptVariables(
@@ -609,8 +617,8 @@ Tool usage example for mcp__gitea__update_pull_request_comment:
 }
 All four parameters (owner, repo, commentId, body) are required.
 </comment_tool_info>`
-    : eventData.isPR
-      ? `<comment_tool_info>
+    : eventData.isPR && enableInlineComments ?
+    `<comment_tool_info>
 IMPORTANT: For PR events, you have TWO separate communication channels:
 
 1. **For code reviews and feedback**: Use mcp__gitea__create_review_with_comments
@@ -627,7 +635,22 @@ Tool usage examples:
 - mcp__gitea__create_review_with_comments: Use for posting code reviews
 - mcp__gitea__update_issue_comment: {"owner": "${context.repository.split("/")[0]}", "repo": "${context.repository.split("/")[1]}", "commentId": ${context.claudeCommentId}, "body": "✅ Task completed"}
 </comment_tool_info>`
-      : `<comment_tool_info>
+    : eventData.isPR && !enableInlineComments ?
+    `<comment_tool_info>
+IMPORTANT: For this event type, you communicate through mcp__gitea__update_issue_comment to update your tracking comment.
+
+Tool usage example for mcp__gitea__update_issue_comment:
+{
+  "owner": "${context.repository.split("/")[0]}",
+  "repo": "${context.repository.split("/")[1]}",
+  "commentId": ${context.claudeCommentId},
+  "body": "Your comment text here"
+}
+All four parameters (owner, repo, commentId, body) are required.
+
+NOTE: Inline code review comments are disabled. All feedback should be posted in your tracking comment.
+</comment_tool_info>`
+    : `<comment_tool_info>
 IMPORTANT: For this event type, you communicate through mcp__gitea__update_issue_comment to update your tracking comment.
 
 Tool usage example for mcp__gitea__update_issue_comment:
@@ -644,7 +667,7 @@ All four parameters (owner, repo, commentId, body) are required.
 Your task is to analyze the context, understand the request, and provide helpful responses and/or implement code changes as needed.
 
 IMPORTANT CLARIFICATIONS:
-- When asked to "review" code, read the code and provide review feedback (do not implement changes unless explicitly asked)${eventData.isPR ? "\n- For PR reviews: Your review will be posted using mcp__gitea__create_review_with_comments. Focus on providing comprehensive review feedback with inline comments." : ""}
+- When asked to "review" code, read the code and provide review feedback (do not implement changes unless explicitly asked)${eventData.isPR && enableInlineComments ? "\n- For PR reviews: Your review will be posted using mcp__gitea__create_review_with_comments. Focus on providing comprehensive review feedback with inline comments." : eventData.isPR && !enableInlineComments ? "\n- For PR reviews: Inline comments are disabled. Post all review feedback in your tracking comment using mcp__gitea__update_issue_comment." : ""}
 - Your console outputs and tool results are NOT visible to the user
 - ALL communication happens through your Gitea comment - that's how users see your feedback, answers, and progress. your normal responses are not seen.
 
@@ -697,7 +720,7 @@ ${
         - Look for bugs, security issues, performance problems, and other issues
         - Suggest improvements for readability and maintainability
         - Check for best practices and coding standards${
-          eventData.isPR
+          eventData.isPR && enableInlineComments
             ? `\n
       **IMPORTANT PR Review Structure:**
       1. **Use mcp__gitea__create_review_with_comments for inline comments:**
@@ -705,7 +728,7 @@ ${
          - Each inline comment should reference the exact line(s) of code
          - Keep inline comments focused on the code issue only - NO praise or admiration
          - Be specific, actionable, and technical
-         
+
       2. **Review body (in mcp__gitea__create_review_with_comments body parameter):**
          - Keep it SHORT - just a high-level summary or task checklist
          - Include praise, appreciation, and general observations here
@@ -719,16 +742,29 @@ ${
          - Do NOT duplicate the review content here
          - Focus on what you did, not what you found
          - Example: \"✅ Reviewed 5 files ✅ Posted review with 3 inline comments\"
-         
+
       **Summary: Inline comments = specific issues | Review body = praise + summary | Tracking comment = task list**
       - AFTER reading files and analyzing code, you MUST call mcp__gitea__create_review_with_comments to post your review`
-            : ""
+            : eventData.isPR && !enableInlineComments
+              ? `\n
+      **IMPORTANT PR Review Structure (Inline Comments Disabled):**
+      - Post ALL review feedback in your tracking comment using mcp__gitea__update_issue_comment
+      - Include specific file paths and line numbers in your comment
+      - Format your feedback clearly with sections for different types of issues
+      - Example format:
+        ### Code Review Findings
+
+        **src/file.ts:42** - Bug: Potential null pointer exception
+        **src/other.ts:15-20** - Suggestion: Consider extracting to separate function
+
+        Overall: Good code quality with a few minor improvements needed.`
+              : ""
         }
       - Formulate a concise, technical, and helpful response based on the context.
       - Reference specific code with inline formatting or code blocks.
       - Include relevant file paths and line numbers when applicable.
       - ${
-        eventData.isPR
+        eventData.isPR && enableInlineComments
           ? "IMPORTANT: Keep your tracking comment concise - detailed feedback goes in the review."
           : "Remember that this feedback must be posted to the Gitea comment."
       }
@@ -789,7 +825,14 @@ ${!eventData.isPR || !eventData.claudeBranch ? `6. Final Update:` : `5. Final Up
 
 Important Notes:
 - All communication must happen through Gitea comments.
-- Never create new comments. Only update the existing comment using ${eventData.eventName === "pull_request_review_comment" ? "mcp__gitea__update_pull_request_comment" : "mcp__gitea__update_issue_comment"} with comment_id: ${context.claudeCommentId}.${eventData.isPR ? "\n- For PRs: Use mcp__gitea__update_issue_comment for progress/status tracking ONLY. Use mcp__gitea__create_review_with_comments for posting code reviews with inline comments." : "\n- This includes ALL responses: code reviews, answers to questions, progress updates, and final results."}
+- Never create new comments. Only update the existing comment using 
+${eventData.eventName === "pull_request_review_comment" ? "mcp__gitea__update_pull_request_comment" : "mcp__gitea__update_issue_comment"
+} with comment_id: ${context.claudeCommentId}. ${
+  eventData.isPR && enableInlineComments ?
+    "\n- For PRs: Use mcp__gitea__update_issue_comment for progress/status tracking ONLY. Use mcp__gitea__create_review_with_comments for posting code reviews with inline comments."
+  : eventData.isPR && !enableInlineComments ?
+    "\n- For PRs: Inline comments are disabled. Use mcp__gitea__update_issue_comment for ALL communication including code reviews, progress updates, and results."
+  : "\n- This includes ALL responses: code reviews, answers to questions, progress updates, and final results."}
 - You communicate exclusively by editing your single comment - not through any other means.
 - Use this spinner HTML when work is in progress: <img src="https://raw.githubusercontent.com/markwylde/claude-code-gitea-action/refs/heads/gitea/assets/spinner.gif" width="14px" height="14px" style="vertical-align: middle; margin-left: 4px;" />
 ${eventData.isPR && !eventData.claudeBranch ? `- Always push to the existing branch when triggered on a PR.` : eventData.claudeBranch ? `- IMPORTANT: You are already on the correct branch (${eventData.claudeBranch}). Do not create additional branches.` : `- IMPORTANT: You are currently on the base branch (${eventData.baseBranch}). First check for existing claude branches for this ${eventData.isPR ? "PR" : "issue"} and use them if found, otherwise create a new branch using mcp__local_git_ops__create_branch.`}
@@ -825,8 +868,10 @@ When users ask you to do something, be aware of what you can and cannot do. This
 What You CAN Do:
 - Respond in a single comment (by updating your initial comment with progress and results)
 - Answer questions about code and provide explanations
-- Perform code reviews and provide detailed feedback (without implementing unless asked)
-- For PR reviews: Create inline comments on specific lines of code using mcp__gitea__create_review_with_comments
+- Perform code reviews and provide detailed feedback (without implementing unless asked)${
+  enableInlineComments ?
+    "\n- For PR reviews: Create inline comments on specific lines of code using mcp__gitea__create_review_with_comments"
+    : ""}
 - Implement code changes (simple to moderate complexity) when explicitly requested
 - Create pull requests for changes to human-authored code
 - Smart branch handling:
@@ -895,6 +940,7 @@ export async function createPrompt(
       preparedContext,
       githubData,
       context.inputs.useCommitSigning,
+      context.inputs.enableInlineComments,
     );
 
     // Log the final prompt to console
@@ -931,6 +977,7 @@ export async function createPrompt(
       combinedAllowedTools,
       hasActionsReadPermission,
       context.inputs.useCommitSigning,
+      context.inputs.enableInlineComments,
     );
     const allDisallowedTools = buildDisallowedToolsString(
       combinedDisallowedTools,

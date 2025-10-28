@@ -72,6 +72,7 @@ jobs:
 | `trigger_phrase`      | The trigger phrase to look for in comments, issue/PR bodies, and issue titles                                                | No       | `@claude`              |
 | `claude_git_name`     | Git user.name for commits made by Claude                                                                                     | No       | `Claude`               |
 | `claude_git_email`    | Git user.email for commits made by Claude                                                                                    | No       | `claude@anthropic.com` |
+| `enable_inline_comments` | Enable inline PR review comments using `mcp__gitea__create_review_with_comments` tool. When disabled, all PR review feedback is posted in the tracking comment. | No       | `true`                 |
 
 \*Required when using direct Anthropic API (default and when not using Bedrock or Vertex)
 
