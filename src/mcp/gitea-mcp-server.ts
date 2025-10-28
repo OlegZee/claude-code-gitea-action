@@ -1420,6 +1420,206 @@ server.tool(
   },
 );
 
+// List all reviews for a pull request
+server.tool(
+  "list_pull_reviews",
+  "Get all reviews for a pull request. Returns an array of review objects including review IDs, authors, states (APPROVED/REQUEST_CHANGES/COMMENT), bodies, and comment counts. Use this to check existing reviews before creating a new one to avoid duplicating feedback.",
+  {
+    pr_number: z
+      .number()
+      .optional()
+      .describe(
+        "Pull request number (optional, defaults to PR_NUMBER environment variable)",
+      ),
+  },
+  async ({ pr_number }) => {
+    try {
+      const prNumber =
+        pr_number || (process.env.PR_NUMBER ? parseInt(process.env.PR_NUMBER) : null);
+
+      if (!prNumber) {
+        throw new Error(
+          "PR_NUMBER environment variable is required for listing reviews",
+        );
+      }
+
+      const reviews = await giteaRequest(
+        `/api/v1/repos/${REPO_OWNER}/${REPO_NAME}/pulls/${prNumber}/reviews`,
+      );
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                success: true,
+                pr_number: prNumber,
+                reviews_count: reviews.length,
+                reviews: reviews.map((review: any) => ({
+                  id: review.id,
+                  user: review.user?.login || review.user?.username,
+                  state: review.state,
+                  body: review.body,
+                  commit_id: review.commit_id,
+                  submitted_at: review.submitted_at,
+                  comments_count: review.comments?.length || 0,
+                })),
+              },
+              null,
+              2,
+            ),
+          },
+        ],
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error(`[GITEA-MCP] Error listing PR reviews: ${errorMessage}`);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error listing PR reviews: ${errorMessage}`,
+          },
+        ],
+        error: errorMessage,
+        isError: true,
+      };
+    }
+  },
+);
+
+// Get details of a specific review
+server.tool(
+  "get_pull_review",
+  "Get detailed information about a specific review including its metadata and associated comments. Use this after list_pull_reviews to get full details of a particular review.",
+  {
+    review_id: z.number().describe("The ID of the review to fetch"),
+    pr_number: z
+      .number()
+      .optional()
+      .describe(
+        "Pull request number (optional, defaults to PR_NUMBER environment variable)",
+      ),
+  },
+  async ({ review_id, pr_number }) => {
+    try {
+      const prNumber =
+        pr_number || (process.env.PR_NUMBER ? parseInt(process.env.PR_NUMBER) : null);
+
+      if (!prNumber) {
+        throw new Error(
+          "PR_NUMBER environment variable is required for getting review",
+        );
+      }
+
+      const review = await giteaRequest(
+        `/api/v1/repos/${REPO_OWNER}/${REPO_NAME}/pulls/${prNumber}/reviews/${review_id}`,
+      );
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(review, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error(`[GITEA-MCP] Error getting PR review: ${errorMessage}`);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error getting PR review: ${errorMessage}`,
+          },
+        ],
+        error: errorMessage,
+        isError: true,
+      };
+    }
+  },
+);
+
+// List all inline comments from a specific review
+server.tool(
+  "list_review_comments",
+  "Get all inline comments from a specific review. Returns detailed information about each comment including file path, line number, body text, diff hunk, and the code side (old/new). Use this to check what was already commented on in previous reviews to avoid duplicates.",
+  {
+    review_id: z.number().describe("The ID of the review to get comments from"),
+    pr_number: z
+      .number()
+      .optional()
+      .describe(
+        "Pull request number (optional, defaults to PR_NUMBER environment variable)",
+      ),
+  },
+  async ({ review_id, pr_number }) => {
+    try {
+      const prNumber =
+        pr_number || (process.env.PR_NUMBER ? parseInt(process.env.PR_NUMBER) : null);
+
+      if (!prNumber) {
+        throw new Error(
+          "PR_NUMBER environment variable is required for listing review comments",
+        );
+      }
+
+      const comments = await giteaRequest(
+        `/api/v1/repos/${REPO_OWNER}/${REPO_NAME}/pulls/${prNumber}/reviews/${review_id}/comments`,
+      );
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                success: true,
+                review_id: review_id,
+                pr_number: prNumber,
+                comments_count: comments.length,
+                comments: comments.map((comment: any) => ({
+                  id: comment.id,
+                  path: comment.path,
+                  line: comment.line || comment.new_position || comment.old_position,
+                  side: comment.old_position ? "LEFT" : "RIGHT",
+                  body: comment.body,
+                  diff_hunk: comment.diff_hunk,
+                  created_at: comment.created_at,
+                  updated_at: comment.updated_at,
+                  user: comment.user?.login || comment.user?.username,
+                })),
+              },
+              null,
+              2,
+            ),
+          },
+        ],
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error(
+        `[GITEA-MCP] Error listing review comments: ${errorMessage}`,
+      );
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error listing review comments: ${errorMessage}`,
+          },
+        ],
+        error: errorMessage,
+        isError: true,
+      };
+    }
+  },
+);
+
 async function runServer() {
   console.log(`[GITEA-MCP] Starting MCP server transport...`);
   const transport = new StdioServerTransport();

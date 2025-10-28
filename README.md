@@ -151,7 +151,11 @@ Get a thorough review:
 @claude Please review this PR and suggest improvements
 ```
 
-Claude will analyze the changes and provide feedback.
+Claude will analyze the changes and provide feedback with inline comments on specific lines of code. When you request subsequent reviews, Claude automatically:
+- Checks for existing reviews it has posted previously
+- Avoids duplicating comments that were already made
+- Focuses only on new issues or problems that weren't addressed
+- Acknowledges fixes in the review summary
 
 #### Fix Bugs from Screenshots
 
@@ -273,7 +277,8 @@ This action is built specifically for Gitea environments with local git operatio
 - **Answer Questions**: Analyze code and provide explanations
 - **Implement Code Changes**: Make simple to moderate code changes based on requests
 - **Prepare Pull Requests**: Creates commits on a branch and links back to a prefilled PR creation page
-- **Perform Code Reviews**: Analyze PR changes and provide detailed feedback
+- **Perform Code Reviews**: Analyze PR changes and provide detailed feedback with inline comments
+- **Incremental Reviews**: Automatically detects and avoids duplicating comments from previous reviews, focusing only on new issues or unfixed problems
 - **Smart Branch Handling**:
   - When triggered on an **issue**: Always creates a new branch for the work
   - When triggered on an **open PR**: Always pushes directly to the existing PR branch
@@ -282,7 +287,6 @@ This action is built specifically for Gitea environments with local git operatio
 
 ### What Claude Cannot Do
 
-- **Submit PR Reviews**: Claude cannot submit formal Gitea PR reviews
 - **Approve PRs**: For security reasons, Claude cannot approve pull requests
 - **Post Multiple Comments**: Claude only acts by updating its initial comment
 - **Execute Commands Outside Its Context**: Claude only has access to the repository and PR/issue context it's triggered in
