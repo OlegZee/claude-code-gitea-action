@@ -53,6 +53,9 @@ const BASE_ALLOWED_TOOLS = [
   "mcp__gitea__update_pull_request",
   "mcp__gitea__update_pull_request_comment",
   "mcp__gitea__create_review_with_comments",
+  "mcp__gitea__list_pull_reviews",
+  "mcp__gitea__get_pull_review",
+  "mcp__gitea__list_review_comments",
   "mcp__gitea__merge_pull_request",
   "mcp__gitea__update_pull_request_branch",
   "mcp__gitea__check_pull_request_merged",
@@ -700,12 +703,27 @@ ${
           eventData.isPR
             ? `\n
       **IMPORTANT PR Review Structure:**
+
+      **Step 0: Check for existing reviews (REQUIRED for incremental reviews):**
+      - Use mcp__gitea__list_pull_reviews to get all previous reviews on this PR
+      - Filter for reviews by your user (Claude/bot account) to find your own prior reviews
+      - For each of your prior reviews, use mcp__gitea__list_review_comments to get the inline comments
+      - Compare existing comment locations (file path + line number) with code you're about to review
+      - ONLY create new inline comments if:
+        a) The issue is new (not previously commented on), OR
+        b) The issue was commented on before but the code hasn't been fixed (issue persists)
+        c) The issue is in a NEW commit since the last review
+      - DO NOT duplicate comments if the code at that location hasn't changed
+      - If code was fixed, acknowledge it in the review body instead of commenting again
+      - Use git diff or file reading tools to check what changed since the last review commit
+
       1. **Use mcp__gitea__create_review_with_comments for inline comments:**
-         - Post ALL specific code issues, bugs, and technical suggestions as inline comments
+         - Post ONLY NEW or UNFIXED specific code issues as inline comments
          - Each inline comment should reference the exact line(s) of code
          - Keep inline comments focused on the code issue only - NO praise or admiration
          - Be specific, actionable, and technical
-         
+         - AVOID duplicating comments from your previous reviews unless the issue persists
+
       2. **Review body (in mcp__gitea__create_review_with_comments body parameter):**
          - Keep it SHORT - just a high-level summary or task checklist
          - Include praise, appreciation, and general observations here
